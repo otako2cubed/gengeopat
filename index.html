@@ -120,6 +120,48 @@
         button.secondary:hover {
             background-color: #5a6268;
         }
+        .palette-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+        .palette-btn {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: white;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+        .palette-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .palette-btn.active {
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        .palette-preview {
+            width: 100%;
+            height: 20px;
+            border-radius: 2px;
+            display: flex;
+            overflow: hidden;
+            margin-bottom: 5px;
+            border: 1px solid rgba(0,0,0,0.1);
+        }
+        .palette-color {
+            flex: 1;
+            height: 100%;
+        }
+        .palette-name {
+            font-size: 0.75rem;
+            color: #555;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
@@ -179,6 +221,13 @@
         </div>
 
         <div class="control-group">
+            <label>おすすめ配色 (Themes)</label>
+            <div id="palette-container" class="palette-grid">
+                <!-- Palettes will be injected here -->
+            </div>
+        </div>
+
+        <div class="control-group">
             <label>不透明度 (Opacity) <span id="val-opacity" class="range-value">1.0</span></label>
             <input type="range" id="opacity" min="0.1" max="1.0" step="0.1" value="1.0">
         </div>
@@ -219,6 +268,68 @@
         opacity: document.getElementById('opacity'),
         randomness: document.getElementById('randomness')
     };
+
+    let activePalette = null;
+
+    const palettes = [
+        { name: "Default", bg: "#ffffff", colors: ["#3498db"] },
+        { name: "Midnight", bg: "#2c3e50", colors: ["#ecf0f1"] },
+        { name: "Sunset", bg: "#2d1b2e", colors: ["#ff9f43", "#ff6b6b", "#feca57"] },
+        { name: "Ocean", bg: "#e0f7fa", colors: ["#006064", "#0097a7", "#4dd0e1"] },
+        { name: "Forest", bg: "#1b5e20", colors: ["#a5d6a7", "#81c784", "#66bb6a"] },
+        { name: "Candy", bg: "#ffebee", colors: ["#ff80ab", "#ea80fc", "#b388ff"] },
+        { name: "Retro", bg: "#f7f1e3", colors: ["#b33939", "#218c74", "#33d9b2", "#ffda79"] },
+        { name: "Mono", bg: "#000000", colors: ["#ffffff"] }
+    ];
+
+    function initPalettes() {
+        const container = document.getElementById('palette-container');
+        palettes.forEach((p, index) => {
+            const btn = document.createElement('div');
+            btn.className = 'palette-btn';
+            btn.onclick = () => selectPalette(index);
+
+            const preview = document.createElement('div');
+            preview.className = 'palette-preview';
+            preview.style.backgroundColor = p.bg;
+
+            p.colors.forEach(c => {
+                const span = document.createElement('span');
+                span.className = 'palette-color';
+                span.style.backgroundColor = c;
+                preview.appendChild(span);
+            });
+
+            const label = document.createElement('div');
+            label.className = 'palette-name';
+            label.textContent = p.name;
+
+            btn.appendChild(preview);
+            btn.appendChild(label);
+            container.appendChild(btn);
+        });
+    }
+
+    function selectPalette(index) {
+        activePalette = palettes[index];
+
+        // Update UI logic
+        document.querySelectorAll('.palette-btn').forEach((b, i) => {
+            if(i === index) b.classList.add('active');
+            else b.classList.remove('active');
+        });
+
+        // Update inputs to reflect palette (for UX)
+        inputs.bgColor.value = activePalette.bg;
+        displays.bgColor.textContent = activePalette.bg;
+
+        if (activePalette.colors.length === 1) {
+             inputs.color.value = activePalette.colors[0];
+             displays.color.textContent = activePalette.colors[0];
+        }
+
+        draw();
+    }
 
     // Value displays
     const displays = {
@@ -301,8 +412,18 @@
         const spacing = parseInt(inputs.spacing.value);
         const rotation = parseInt(inputs.rotation.value);
         const strokeWidth = parseInt(inputs.stroke.value);
-        const color = inputs.color.value;
-        const bgColor = inputs.bgColor.value;
+
+        // Determine colors based on active palette or manual inputs
+        let bgToUse, colorsToUse;
+
+        if (activePalette) {
+            bgToUse = activePalette.bg;
+            colorsToUse = activePalette.colors;
+        } else {
+            bgToUse = inputs.bgColor.value;
+            colorsToUse = [inputs.color.value];
+        }
+
         const opacity = parseFloat(inputs.opacity.value);
         const randomness = parseInt(inputs.randomness.value);
 
@@ -313,44 +434,41 @@
         displays.stroke.textContent = strokeWidth === 0 ? '0 (Fill)' : strokeWidth;
         displays.opacity.textContent = opacity;
         displays.randomness.textContent = randomness;
-        displays.color.textContent = color;
-        displays.bgColor.textContent = bgColor;
+
+        // Only update text displays if manual (or if we sync inputs in palette selection)
+        // Note: Palette selection updates values, so this is safe.
+        displays.color.textContent = inputs.color.value;
+        displays.bgColor.textContent = inputs.bgColor.value;
 
         // Background
-        ctx.fillStyle = bgColor;
+        ctx.fillStyle = bgToUse;
         ctx.fillRect(0, 0, width, height);
 
         // Grid calculation
-        // Calculate needed cols and rows to cover screen + buffer for rotation/randomness
         const cols = Math.ceil(width / spacing) + 2;
         const rows = Math.ceil(height / spacing) + 2;
 
         ctx.globalAlpha = opacity;
-        ctx.strokeStyle = color;
-        ctx.fillStyle = color;
         ctx.lineWidth = strokeWidth;
 
-        // Use a consistent seed for randomness is hard in JS without library,
-        // but for "randomness" feature, we usually want it to be static per frame unless re-generated.
-        // Here, we just use Math.random() inside the loop.
-        // Note: This causes "jitter" if we were animating, but for static generation it's fine.
-        // However, if we resize window, the pattern will change configuration. That's acceptable.
-
-        // To make it deterministic (so resizing doesn't change the "random" pattern completely),
-        // we would need a seeded random. For this simple app, re-randomizing on draw is okay.
-
-        // Actually, let's keep it simple. Every draw call re-randomizes.
+        let count = 0;
 
         for (let i = -1; i < cols; i++) {
             for (let j = -1; j < rows; j++) {
                 ctx.save();
+
+                // Pick color
+                const currentColor = colorsToUse[count % colorsToUse.length];
+                ctx.strokeStyle = currentColor;
+                ctx.fillStyle = currentColor;
+                count++;
 
                 let posX = i * spacing + (spacing / 2);
                 let posY = j * spacing + (spacing / 2);
 
                 // Randomness (Jitter)
                 if (randomness > 0) {
-                    const maxOffset = spacing * (randomness / 200); // Max 50% of spacing shift
+                    const maxOffset = spacing * (randomness / 200);
                     posX += (Math.random() - 0.5) * 2 * maxOffset;
                     posY += (Math.random() - 0.5) * 2 * maxOffset;
                 }
@@ -360,7 +478,7 @@
                 // Rotation
                 let angle = rotation;
                 if (randomness > 0) {
-                    angle += (Math.random() - 0.5) * randomness * 2; // +/- randomness degrees
+                    angle += (Math.random() - 0.5) * randomness * 2;
                 }
                 ctx.rotate(angle * Math.PI / 180);
 
@@ -379,13 +497,23 @@
 
     // Event Listeners
     window.addEventListener('resize', resizeCanvas);
-    window.addEventListener('load', resizeCanvas);
+    window.addEventListener('load', () => {
+        initPalettes();
+        resizeCanvas();
+    });
 
     // Attach listeners to all inputs
     inputs.shape.forEach(r => r.addEventListener('change', draw));
     Object.values(inputs).forEach(input => {
         if (input instanceof HTMLElement && input.type !== 'radio') {
-            input.addEventListener('input', draw);
+            input.addEventListener('input', (e) => {
+                // If user changes color manually, clear active palette
+                if (e.target.type === 'color') {
+                    activePalette = null;
+                    document.querySelectorAll('.palette-btn').forEach(b => b.classList.remove('active'));
+                }
+                draw();
+            });
         }
     });
 
