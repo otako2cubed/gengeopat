@@ -171,16 +171,16 @@
         <h1>Pattern Generator</h1>
 
         <div class="control-group">
-            <label>図形の選択</label>
+            <label>図形の選択 (複数可)</label>
             <div class="shape-options">
-                <label class="shape-option"><input type="radio" name="shape" value="circle" checked> 円 (Circle)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="square"> 正方形 (Square)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="triangle"> 三角形 (Triangle)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="hexagon"> 六角形 (Hexagon)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="octagon"> 八角形 (Octagon)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="wave"> 波線 (Wave)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="dot"> ドット (Dot)</label>
-                <label class="shape-option"><input type="radio" name="shape" value="cross"> クロス (Cross)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="circle" checked> 円 (Circle)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="square"> 正方形 (Square)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="triangle"> 三角形 (Triangle)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="hexagon"> 六角形 (Hexagon)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="octagon"> 八角形 (Octagon)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="wave"> 波線 (Wave)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="dot"> ドット (Dot)</label>
+                <label class="shape-option"><input type="checkbox" name="shape" value="cross"> クロス (Cross)</label>
             </div>
         </div>
 
@@ -376,11 +376,12 @@
         bgColor: document.getElementById('hex-bg-color')
     };
 
-    function getSelectedShape() {
-        for (const radio of inputs.shape) {
-            if (radio.checked) return radio.value;
+    function getSelectedShapes() {
+        const selected = [];
+        for (const checkbox of inputs.shape) {
+            if (checkbox.checked) selected.push(checkbox.value);
         }
-        return 'circle';
+        return selected.length > 0 ? selected : [];
     }
 
     function resizeCanvas() {
@@ -450,7 +451,7 @@
     function draw() {
         const width = canvas.width;
         const height = canvas.height;
-        const shape = getSelectedShape();
+        const selectedShapes = getSelectedShapes();
         const size = parseInt(inputs.size.value);
         const spacing = parseInt(inputs.spacing.value);
         const rotation = parseInt(inputs.rotation.value);
@@ -487,6 +488,8 @@
         ctx.fillStyle = bgToUse;
         ctx.fillRect(0, 0, width, height);
 
+        if (selectedShapes.length === 0) return;
+
         // Grid calculation
         const cols = Math.ceil(width / spacing) + 2;
         const rows = Math.ceil(height / spacing) + 2;
@@ -502,6 +505,9 @@
 
                 // Pick color
                 const currentColor = colorsToUse[count % colorsToUse.length];
+                // Pick shape
+                const currentShape = selectedShapes[count % selectedShapes.length];
+
                 ctx.strokeStyle = currentColor;
                 ctx.fillStyle = currentColor;
                 count++;
@@ -525,7 +531,7 @@
                 }
                 ctx.rotate(angle * Math.PI / 180);
 
-                drawShape(shape, size);
+                drawShape(currentShape, size);
 
                 if (strokeWidth > 0) {
                     ctx.stroke();
@@ -548,7 +554,7 @@
     // Attach listeners to all inputs
     inputs.shape.forEach(r => r.addEventListener('change', draw));
     Object.values(inputs).forEach(input => {
-        if (input instanceof HTMLElement && input.type !== 'radio') {
+        if (input instanceof HTMLElement && input.type !== 'checkbox' && input.type !== 'radio') {
             input.addEventListener('input', (e) => {
                 // If user changes color manually, clear active palette
                 if (e.target.type === 'color') {
