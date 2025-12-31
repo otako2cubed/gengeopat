@@ -177,6 +177,7 @@
                 <label class="shape-option"><input type="radio" name="shape" value="square"> 正方形 (Square)</label>
                 <label class="shape-option"><input type="radio" name="shape" value="triangle"> 三角形 (Triangle)</label>
                 <label class="shape-option"><input type="radio" name="shape" value="hexagon"> 六角形 (Hexagon)</label>
+                <label class="shape-option"><input type="radio" name="shape" value="octagon"> 八角形 (Octagon)</label>
                 <label class="shape-option"><input type="radio" name="shape" value="wave"> 波線 (Wave)</label>
                 <label class="shape-option"><input type="radio" name="shape" value="dot"> ドット (Dot)</label>
                 <label class="shape-option"><input type="radio" name="shape" value="cross"> クロス (Cross)</label>
@@ -221,8 +222,11 @@
         </div>
 
         <div class="control-group">
-            <label>おすすめ配色 (Themes)</label>
-            <div id="palette-container" class="palette-grid">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label style="margin-bottom:0;">おすすめ配色 (Themes)</label>
+                <button id="btn-regen-palettes" style="padding:2px 8px; font-size:0.75rem; width:auto; flex:none;">再生成</button>
+            </div>
+            <div id="palette-container" class="palette-grid" style="margin-top:10px;">
                 <!-- Palettes will be injected here -->
             </div>
         </div>
@@ -271,7 +275,7 @@
 
     let activePalette = null;
 
-    const palettes = [
+    let palettes = [
         { name: "Default", bg: "#ffffff", colors: ["#3498db"] },
         { name: "Midnight", bg: "#2c3e50", colors: ["#ecf0f1"] },
         { name: "Sunset", bg: "#2d1b2e", colors: ["#ff9f43", "#ff6b6b", "#feca57"] },
@@ -282,8 +286,37 @@
         { name: "Mono", bg: "#000000", colors: ["#ffffff"] }
     ];
 
+    function getRandomColor() {
+        const letters = '0123456789ABCDEF';
+        let color = '#';
+        for (let i = 0; i < 6; i++) {
+            color += letters[Math.floor(Math.random() * 16)];
+        }
+        return color;
+    }
+
+    function generateRandomPalettes() {
+        palettes = [];
+
+        for(let i=0; i<8; i++) {
+            const bg = getRandomColor();
+            const numColors = Math.floor(Math.random() * 3) + 1; // 1 to 3 colors
+            const colors = [];
+            for(let j=0; j<numColors; j++) {
+                colors.push(getRandomColor());
+            }
+            palettes.push({
+                name: "Random " + (i+1),
+                bg: bg,
+                colors: colors
+            });
+        }
+        initPalettes();
+    }
+
     function initPalettes() {
         const container = document.getElementById('palette-container');
+        container.innerHTML = '';
         palettes.forEach((p, index) => {
             const btn = document.createElement('div');
             btn.className = 'palette-btn';
@@ -376,6 +409,16 @@
             case 'hexagon':
                 for (let i = 0; i < 6; i++) {
                     const angle_deg = 60 * i - 30;
+                    const angle_rad = Math.PI / 180 * angle_deg;
+                    const r = size / 2;
+                    if (i === 0) ctx.moveTo(r * Math.cos(angle_rad), r * Math.sin(angle_rad));
+                    else ctx.lineTo(r * Math.cos(angle_rad), r * Math.sin(angle_rad));
+                }
+                ctx.closePath();
+                break;
+            case 'octagon':
+                for (let i = 0; i < 8; i++) {
+                    const angle_deg = 45 * i - 22.5; // Rotate slightly to align flat side
                     const angle_rad = Math.PI / 180 * angle_deg;
                     const r = size / 2;
                     if (i === 0) ctx.moveTo(r * Math.cos(angle_rad), r * Math.sin(angle_rad));
@@ -527,6 +570,7 @@
 
     document.getElementById('btn-jpg').addEventListener('click', () => downloadImage('jpg'));
     document.getElementById('btn-png').addEventListener('click', () => downloadImage('png'));
+    document.getElementById('btn-regen-palettes').addEventListener('click', generateRandomPalettes);
 
 </script>
 
